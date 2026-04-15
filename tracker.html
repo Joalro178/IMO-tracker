@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMO Shortlist Tracker - Shanghái 2026</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --text: #c9d1d9;
+            --accent: #58a6ff;
+            --success: #238636;
+            --border: #30363d;
+            --active: #1f6feb;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1000px; margin: auto; }
+        h1 { color: var(--accent); border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .category-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .category-card:hover { transform: translateY(-3px); border-color: var(--accent); }
+        .category-card.active { background: var(--active); color: white; border-color: var(--accent); font-weight: bold;}
+
+        .controls { margin-bottom: 20px; font-size: 1.2em; display: flex; align-items: center; gap: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #21262d; color: var(--accent); }
+
+        input, select {
+            background: #0d1117; border: 1px solid var(--border); color: white; padding: 8px; border-radius: 4px; width: 90%;
+        }
+        input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+        
+        .status-badge {
+            padding: 5px 10px; border-radius: 12px; font-size: 0.9em; font-weight: bold; text-align: center;
+        }
+        
+        .notification {
+            color: var(--success); font-size: 0.9em; opacity: 0; transition: opacity 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🇨🇳 IMO Tracker - Shanghái 2026</h1>
+    <p>Selecciona un área y un año para ver los problemas. Tus cambios se guardan automáticamente.</p>
+
+    <div class="categories" id="categoryContainer">
+        <div class="category-card active" onclick="setCategory('Álgebra', 'A')">Álgebra</div>
+        <div class="category-card" onclick="setCategory('Combinatoria', 'C')">Combinatoria</div>
+        <div class="category-card" onclick="setCategory('Geometría', 'G')">Geometría</div>
+        <div class="category-card" onclick="setCategory('Teoría de Números', 'N')">Teoría de Números</div>
+    </div>
+
+    <div class="controls">
+        <label><b>Año:</b></label>
+        <select id="yearSelect" onchange="setYear(this.value)" style="width: auto; font-size: 1em;">
+            </select>
+        <span id="saveNotif" class="notification">✓ Guardado</span>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th width="10%">Problema</th>
+                <th width="20%">Estado</th>
+                <th width="40%">Link Drive (Tu Solución)</th>
+                <th width="15%">Nota (0-7)</th>
+                <th width="15%">Revisado</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            </tbody>
+    </table>
+</div>
+
+<script>
+    let currentCategory = 'Álgebra';
+    let currentPrefix = 'A';
+    let currentYear = '2024';
+    const problemsPerYear = 8; // Promedio de problemas por área en la Shortlist
+
+    // Generar los años del 2024 al 2006
+    const yearSelect = document.getElementById('yearSelect');
+    for (let y = 2024; y >= 2006; y--) {
+        let opt = document.createElement('option');
+        opt.value = y; opt.innerHTML = y;
+        yearSelect.appendChild(opt);
+    }
+
+    function setCategory(catName, prefix) {
+        currentCategory = catName;
+        currentPrefix = prefix;
+        
+        // Actualizar diseño de botones
+        document.querySelectorAll('.category-card').forEach(card => {
+            card.classList.remove('active');
+            if(card.innerText === catName) card.classList.add('active');
+        });
+        renderTable();
+    }
+
+    function setYear(year) {
+        currentYear = year;
+        renderTable();
+    }
+
+    function saveData(id, field, value) {
+        const key = `imo_${id}_${field}`;
+        localStorage.setItem(key, value);
+        
+        // Animación de guardado
+        const notif = document.getElementById('saveNotif');
+        notif.style.opacity = 1;
+        setTimeout(() => notif.style.opacity = 0, 1500);
+    }
+
+    function loadData(id, field, defaultValue) {
+        return localStorage.getItem(`imo_${id}_${field}`) || defaultValue;
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = ''; // Limpiar tabla
+
+        for (let i = 1; i <= problemsPerYear; i++) {
+            const probId = `${currentPrefix}${i}-${currentYear}`; // Ejemplo: A1-2024
+            
+            // Cargar datos guardados
+            const savedStatus = loadData(probId, 'status', 'Pendiente');
+            const savedLink = loadData(probId, 'link', '');
+            const savedScore = loadData(probId, 'score', '');
+            const savedChecked = loadData(probId, 'checked', 'false') === 'true' ? 'checked' : '';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${currentPrefix}${i}</b></td>
+                <td>
+                    <select onchange="saveData('${probId}', 'status', this.value)">
+                        <option value="Pendiente" ${savedStatus === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                        <option value="En Proceso" ${savedStatus === 'En Proceso' ? 'selected' : ''}>En Proceso</option>
+                        <option value="Resuelto" ${savedStatus === 'Resuelto' ? 'selected' : ''}>Resuelto</option>
+                    </select>
+                </td>
+                <td><input type="url" placeholder="Pegar link de Drive..." value="${savedLink}" oninput="saveData('${probId}', 'link', this.value)"></td>
+                <td><input type="number" min="0" max="7" placeholder="0" value="${savedScore}" oninput="saveData('${probId}', 'score', this.value)"></td>
+                <td style="text-align:center;"><input type="checkbox" ${savedChecked} onchange="saveData('${probId}', 'checked', this.checked)"></td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    // Iniciar tabla al abrir la página
+    renderTable();
+</script>
+
+</body>
+</html>
